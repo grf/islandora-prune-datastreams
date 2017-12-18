@@ -154,9 +154,9 @@ def analyze_foxml(islandora_pid, filename)
     keeper = list.pop
     next if list.empty?
     list.each do |ds|
-      puts [islandora_pid, ds.version_id, ds.size, ds.timestamp, 'true'].join(',')
+      puts [islandora_pid, ds.datastream_id, ds.version_id, ds.size, ds.timestamp, 'true'].join(',')
     end
-      puts [islandora_pid, keeper.version_id, keeper.size, keeper.timestamp, 'false'].join(',')
+      puts [islandora_pid, keeper.datastream_id, keeper.version_id, keeper.size, keeper.timestamp, 'false'].join(',')
 
 
   end
