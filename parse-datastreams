@@ -1,0 +1,149 @@
+#!/usr/bin/env ruby
+
+# where-are-datastreams takes the usual options (fedora server
+# location, admin username and password) and one argument, a
+# fedora PID (info:fedora/fiu:18532 or simply fiu:18532).
+#
+# It first grabs the FOXML for the PID, and then uses our akumbra
+# hash-path mapping to locate the file on disk.
+#
+# TODO: use config.yml to get the password
+# TODO: parse /usr/local/fedora/server/config/spring/akubra-llstore.xml instead of using th currently-hardcoded parameters.
+# TODO: switch to XPath to get datastreams
+
+require 'rubygems'
+require 'nokogiri'
+
+Kernel.trap('INT')  { STDERR.puts "Interrupt"    ; exit -2 }
+Kernel.trap('PIPE') { STDERR.puts "Pipe Closed"  ; exit -4 }
+Kernel.trap('HUP')  { "IGNORE" }
+
+Struct.new('Datastream', :datastream_id, :version_id, :mime_type, :control_group, :size, :has_content_location)
+
+class SaxDocument < Nokogiri::XML::SAX::Document
+
+  attr_accessor :datastreams
+
+  def initialize()
+    @datastreams = []
+    @current_datastream = nil
+    super()
+  end
+
+  # We're only interested in parsing out parts of the FOXML that has
+  # data such as (note multiple versions of OCR - I dummied that part
+  # of the example up but I believe it is accurate).
+  #
+  # <foxml:datastream ID="JPG" STATE="A" CONTROL_GROUP="M" VERSIONABLE="true">
+  #     <foxml:datastreamVersion ID="JPG.0" LABEL="Original JPEG FI06141903_144" CREATED="2014-11-22T19:00:50.167Z" MIMETYPE="image/jpeg" SIZE="27531">
+  #         <foxml:contentLocation TYPE="INTERNAL_ID" REF="fiu:18532+JPG+JPG.0"/>
+  #     </foxml:datastreamVersion>
+  # </foxml:datastream>
+  #
+  # <foxml:datastream ID="OCR" STATE="A" CONTROL_GROUP="M" VERSIONABLE="true">
+  #     <foxml:datastreamVersion ID="OCR.0" LABEL="OCR" CREATED="2014-11-22T19:00:53.621Z" MIMETYPE="text/plain" SIZE="512">
+  #         <foxml:contentLocation TYPE="INTERNAL_ID" REF="fiu:18532+OCR+OCR.0"/>
+  #     </foxml:datastreamVersion>
+  #     <foxml:datastreamVersion ID="OCR.1" LABEL="OCR" CREATED="2014-11-22T20:01:34.981Z" MIMETYPE="text/plain" SIZE="512">
+  #         <foxml:contentLocation TYPE="INTERNAL_ID" REF="fiu:18532+OCR+OCR.1"/>
+  #     </foxml:datastreamVersion>
+  # </foxml:datastream>
+  #
+  # <foxml:datastream ID="HOCR" STATE="A" CONTROL_GROUP="M" VERSIONABLE="true">
+  #     <foxml:datastreamVersion ID="HOCR.0" LABEL="HOCR" CREATED="2014-11-22T19:00:57.153Z" MIMETYPE="text/html" SIZE="15641">
+  #         <foxml:contentLocation TYPE="INTERNAL_ID" REF="fiu:18532+HOCR+HOCR.0"/>
+  #     </foxml:datastreamVersion>
+  # </foxml:datastream>
+
+
+  def start_element_namespace name, attributes = [], prefix = nil, uri = nil, ns = []
+    case name
+
+    when 'datastream'
+      # puts "#{name} #{attributes.inspect} #{prefix} => #{uri} #{ns.inspect}"
+      @current_datastream = Struct::Datastream.new
+      attributes.each do |a|
+        @current_datastream.control_group = a.value if a.localname == 'CONTROL_GROUP'
+        @current_datastream.datastream_id = a.value if a.localname == 'ID'
+      end
+
+    when 'datastreamVersion'
+      # puts "#{name} #{attributes.inspect} #{prefix} => #{uri} #{ns.inspect}"
+      attributes.each do |a|
+        @current_datastream.mime_type  = a.value      if a.localname == 'MIMETYPE'
+        @current_datastream.size       = a.value.to_i if a.localname == 'SIZE'
+        @current_datastream.version_id = a.value      if a.localname == 'ID'
+      end
+
+    when 'contentLocation'
+      # puts "#{name} #{attributes.inspect} #{prefix} => #{uri} #{ns.inspect}"
+      attributes.each do |a|
+        @current_datastream.has_content_location = true if a.localname == 'TYPE' and a.value == 'INTERNAL_ID'
+      end
+    end
+  end
+
+  # When we want multiple datastreamVersion's we just copy the
+  # previous @current_datastream, since it holds the parent's
+  # (datastream element) info.
+
+  def end_element_namespace name, prefix = nil, uri = nil
+    return unless name == 'datastreamVersion' or name == 'datastream'
+    return unless (@current_datastream.has_content_location and @current_datastream.control_group == 'M') or @current_datastream.control_group == 'X'
+
+    if name == 'datastreamVersion'
+      @datastreams.push @current_datastream
+      @current_datastream = @current_datastream.clone
+    end
+  end
+end
+
+def nope(message)
+  STDERR.puts message
+  exit -1
+end
+
+def extract_pid_from_name(filename)
+  fn = File.basename(filename)        # something "info%3Afedora%2Fuf%3A35343"
+  pid = fn.gsub('%3A', ':').gsub('%2F', '/').sub('info:fedora/', '')
+  return nil unless pid =~ /^[^:]+:[^:]+$/
+  return pid
+end
+
+# MAIN
+
+
+ARGV.each do |filename|
+
+  nope("Usage: #{File.basename(__FILE__)} foxml-filename") unless filename
+  nope("File '#{filename}' doesn't exist")  unless File.exists? filename
+  nope("File '#{filename}' isn't readable") unless File.readable? filename
+
+  islandora_pid = extract_pid_from_name(filename)
+
+  if not islandora_pid
+    STDERR.puts "Can't get islandora PID from filenmae '#{filename}', skipping"
+    next
+  end
+
+  puts islandora_pid
+
+  sax_document = SaxDocument.new()
+  Nokogiri::XML::SAX::Parser.new(sax_document).parse(File.read(filename))
+
+  datastream_classes = {}
+  sax_document.datastreams.each do |ds|
+    puts ds.inspect
+    next unless ds.has_content_location
+    datastream_classes[ds.datastream_id] ||= []
+    datastream_classes[ds.datastream_id].push ds
+  end
+
+  datastream_classes.each do |datastream_id, list|
+    list.pop
+    next if list.empty?
+    list.each do |ds|
+      puts [islandora_pid, ds.version_id, ds.size].join(',')
+    end
+  end
+end
