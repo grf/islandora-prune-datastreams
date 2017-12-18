@@ -18,7 +18,7 @@ Kernel.trap('INT')  { STDERR.puts "Interrupt"    ; exit -2 }
 Kernel.trap('PIPE') { STDERR.puts "Pipe Closed"  ; exit -4 }
 Kernel.trap('HUP')  { "IGNORE" }
 
-Struct.new('Datastream', :datastream_id, :version_id, :mime_type, :control_group, :size, :has_content_location)
+Struct.new('Datastream', :datastream_id, :version_id, :mime_type, :control_group, :size, :has_content_location, :timestamp)
 
 class SaxDocument < Nokogiri::XML::SAX::Document
 
@@ -73,6 +73,7 @@ class SaxDocument < Nokogiri::XML::SAX::Document
         @current_datastream.mime_type  = a.value      if a.localname == 'MIMETYPE'
         @current_datastream.size       = a.value.to_i if a.localname == 'SIZE'
         @current_datastream.version_id = a.value      if a.localname == 'ID'
+        @current_datastream.timestamp  = a.value      if a.localname == 'CREATED'
       end
 
     when 'contentLocation'
@@ -131,7 +132,7 @@ end
 
 def extract_pid_from_name(filename)
   fn = File.basename(filename)        # something "info%3Afedora%2Fuf%3A35343"
-  pid = fn.gsub('%3A', ':').gsub('%2F', '/').sub('info:fedora/', '')
+  pid = fn.gsub('%3A', ':').gsub('%2F', '/').sub('info:fedora/', '').sub(/\.[^\.]*$/, '')
   return nil unless pid =~ /^[^:]+:[^:]+$/
   return pid
 end
@@ -150,11 +151,14 @@ def analyze_foxml(islandora_pid, filename)
   end
 
   datastream_classes.each do |datastream_id, list|
-    list.pop
+    keeper = list.pop
     next if list.empty?
     list.each do |ds|
-      puts [islandora_pid, ds.version_id, ds.size].join(',')
+      puts [islandora_pid, ds.version_id, ds.size, ds.timestamp, 'true'].join(',')
     end
+      puts [islandora_pid, keeper.version_id, keeper.size, keeper.timestamp, 'false'].join(',')
+
+
   end
 
 rescue => e
