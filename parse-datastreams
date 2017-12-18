@@ -126,14 +126,11 @@ ARGV.each do |filename|
     next
   end
 
-  puts islandora_pid
-
   sax_document = SaxDocument.new()
   Nokogiri::XML::SAX::Parser.new(sax_document).parse(File.read(filename))
 
   datastream_classes = {}
   sax_document.datastreams.each do |ds|
-    puts ds.inspect
     next unless ds.has_content_location
     datastream_classes[ds.datastream_id] ||= []
     datastream_classes[ds.datastream_id].push ds
