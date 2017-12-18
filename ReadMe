@@ -1,2 +1,57 @@
 
-Parse a FoXML file for the datastreams, delete the oldest...
+Parse a FoXML file for the multiple datastream versions, create a CSV
+file of all of the versions. Currently we only look at datastreams
+with external files, not the XML datastreams internal to the FoXML
+files.
+
+Consider the fragment of the FoxML file
+
+      <foxml:datastream ID="PREVIEW" STATE="A" CONTROL_GROUP="M" VERSIONABLE="true">
+        <foxml:datastreamVersion ID="PREVIEW.0" LABEL="Preview" CREATED="2014-06-10T21:17:22.248Z" MIMETYPE="image/jpeg" SIZE="14756">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.0"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.1" LABEL="Preview" CREATED="2015-12-16T14:33:08.671Z" MIMETYPE="image/jpeg" SIZE="14756">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.1"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.2" LABEL="Preview" CREATED="2015-12-16T14:33:08.858Z" MIMETYPE="image/jpeg" SIZE="13808">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.2"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.3" LABEL="Preview" CREATED="2015-12-16T14:33:14.533Z" MIMETYPE="image/jpeg" SIZE="13808">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.3"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.4" LABEL="Preview" CREATED="2015-12-16T14:33:14.680Z" MIMETYPE="image/jpeg" SIZE="23791">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.4"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.5" LABEL="Preview" CREATED="2015-12-16T20:51:30.185Z" MIMETYPE="image/jpeg" SIZE="23791">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.5"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.6" LABEL="Preview" CREATED="2015-12-16T20:51:30.345Z" MIMETYPE="image/jpeg" SIZE="23791">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.6"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.7" LABEL="Preview" CREATED="2015-12-16T20:51:37.152Z" MIMETYPE="image/jpeg" SIZE="23791">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.7"/>
+        </foxml:datastreamVersion>
+        <foxml:datastreamVersion ID="PREVIEW.8" LABEL="Preview" CREATED="2015-12-16T20:51:37.320Z" MIMETYPE="image/jpeg" SIZE="23791">
+          <foxml:contentLocation TYPE="INTERNAL_ID" REF="fau:8968+PREVIEW+PREVIEW.8"/>
+        </foxml:datastreamVersion>
+      </foxml:datastream>
+
+We produce a CSV file as follows:
+
+    fau:8968,PREVIEW.0,14756,2014-06-10T21:17:22.248Z,true
+    fau:8968,PREVIEW.1,14756,2015-12-16T14:33:08.671Z,true
+    fau:8968,PREVIEW.2,13808,2015-12-16T14:33:08.858Z,true
+    fau:8968,PREVIEW.3,13808,2015-12-16T14:33:14.533Z,true
+    fau:8968,PREVIEW.4,23791,2015-12-16T14:33:14.680Z,true
+    fau:8968,PREVIEW.5,23791,2015-12-16T20:51:30.185Z,true
+    fau:8968,PREVIEW.6,23791,2015-12-16T20:51:30.345Z,true
+    fau:8968,PREVIEW.7,23791,2015-12-16T20:51:37.152Z,true
+    fau:8968,PREVIEW.8,23791,2015-12-16T20:51:37.320Z,false
+
+The inital entries are marked for deletion (with a 'true' value).
+
+Next, trundle through the CSV deleting the older versions using the REST API.
+
+The REST API we expect to use to purge datastream versions use the
+timestamps; it is currently unclear whether the subsecond times are
+used in these comparisons.
