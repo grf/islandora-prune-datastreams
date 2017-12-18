@@ -100,8 +100,34 @@ end
 
 def nope(message)
   STDERR.puts message
-  exit -1
+  # exit -1
 end
+
+def problem?(filename)
+
+  unless filename
+    nope("Usage: #{File.basename(__FILE__)} foxml-filename")
+    return true
+  end
+
+  unless File.exists? filename
+    nope("File '#{filename}' doesn't exist")
+    return true
+  end
+
+  unless File.readable? filename
+    nope("File '#{filename}' isn't readable")
+    return true
+  end
+
+  unless File.stat(filename).size > 0
+    nope("File '#{filename}' has no data")
+    return true
+  end
+
+  return false
+end
+
 
 def extract_pid_from_name(filename)
   fn = File.basename(filename)        # something "info%3Afedora%2Fuf%3A35343"
@@ -110,23 +136,10 @@ def extract_pid_from_name(filename)
   return pid
 end
 
-# MAIN
 
-
-ARGV.each do |filename|
-
-  nope("Usage: #{File.basename(__FILE__)} foxml-filename") unless filename
-  nope("File '#{filename}' doesn't exist")  unless File.exists? filename
-  nope("File '#{filename}' isn't readable") unless File.readable? filename
-
-  islandora_pid = extract_pid_from_name(filename)
-
-  if not islandora_pid
-    STDERR.puts "Can't get islandora PID from filenmae '#{filename}', skipping"
-    next
-  end
-
+def analyze_foxml(islandora_pid, filename)
   sax_document = SaxDocument.new()
+
   Nokogiri::XML::SAX::Parser.new(sax_document).parse(File.read(filename))
 
   datastream_classes = {}
@@ -143,4 +156,25 @@ ARGV.each do |filename|
       puts [islandora_pid, ds.version_id, ds.size].join(',')
     end
   end
+
+rescue => e
+  "Can't analyze file '#{filename}', pid #{islandora_pid}: #{e}, skipping"
+end
+
+# MAIN
+
+
+ARGV.each do |filename|
+
+  next if problem? filename
+
+  islandora_pid = extract_pid_from_name(filename)
+
+  if not islandora_pid
+    nope("Can't get islandora PID from filename '#{filename}', skipping")
+    next
+  end
+
+  analyze_foxml(islandora_pid, filename)
+
 end
