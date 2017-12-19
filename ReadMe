@@ -50,8 +50,24 @@ We produce a CSV file as follows:
 
 The inital entries are marked for deletion (with a 'true' value).
 
-Next, trundle through the CSV deleting the older versions using the REST API.
+Next, trundle through the CSV deleting the older versions using the
+REST API.
 
 The REST API we expect to use to purge datastream versions use the
 timestamps; it is currently unclear whether the subsecond times are
 used in these comparisons.
+
+
+Analysis
+
+We collected the data using the parse-datastreams program on
+2017-12-18, see the file
+
+   data/2017-12-18/data.csv.gz
+
+We used the script compute-multiple-datastreams on these data, see
+especially the plots in the data/2017-12-18/ directory.
+
+111,287,157,847 Bytes
+111.3 GB
+103.6 GiB
