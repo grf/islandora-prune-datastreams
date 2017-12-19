@@ -1,0 +1,113 @@
+#!/bin/sh
+#
+# Consider a fragment of our data as produced by the script
+#
+# fau:36200,MODS,MODS.0,2243,2017-08-07T18:46:50.852Z,true
+# fau:36200,MODS,MODS.1,2454,2017-08-11T12:19:33.833Z,false
+# fau:36200,POLICY,POLICY.0,3532,2017-08-07T18:46:50.852Z,true
+# fau:36200,POLICY,POLICY.1,725,2017-08-07T19:16:17.386Z,false
+# fsu:8420,MODS,MODS.0,2281,2013-10-22T17:22:40.997Z,true
+# fsu:8420,MODS,MODS.1,2281,2016-11-14T21:13:51.196Z,true
+# fsu:8420,MODS,MODS.2,2734,2017-07-11T17:05:12.336Z,false
+# unf:18318,HOCR,HOCR.0,1,2015-04-24T16:12:13.028Z,true
+# unf:18318,HOCR,HOCR.1,21524,2015-04-24T16:12:13.189Z,true
+# unf:18318,HOCR,HOCR.2,21524,2015-04-24T16:12:13.414Z,true
+# unf:18318,HOCR,HOCR.3,21524,2015-04-24T16:12:13.562Z,false
+# unf:18318,OCR,OCR.0,1,2015-04-24T16:12:12.339Z,true
+# unf:18318,OCR,OCR.1,1127,2015-04-24T16:12:12.605Z,true
+# unf:18318,OCR,OCR.2,1127,2015-04-24T16:12:12.752Z,true
+# unf:18318,OCR,OCR.3,1127,2015-04-24T16:12:12.907Z,false
+#
+# I'm taking us through the processing pipeline, which is:
+#
+# 1                        2               3      4             5         6         7                  8         9
+# grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, $1}'
+#
+# 1: look at our collected data as in the above and find the extra
+# datastreams - false means it's not deletable, it's the one we need
+# preserve, so we remove that from our processing
+#
+# 2 and 3: grab the pid/datastream-id pairs and then sort (sort is
+# probably not necessary)
+#
+# 4: grab just the pid's - so for the above data we'd have:
+#
+#    fau:36200
+#    fau:36200
+#    fsu:8420
+#    fsu:8420
+#    unf:18318
+#    unf:18318
+#    unf:18318
+#    unf:18318
+#    unf:18318
+#    unf:18318
+#
+# 5: count them - we have the total number of redundant per islandora digital object
+#
+# repeating that pipeline so you can follow along:
+#
+# 1                        2               3      4             5         6         7                  8         9
+# grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, $1}'
+#
+# 6: sort by the counts (so 10 would mean there were that many extra
+# datastreams for a single object) - for instance,
+#
+#      2 fau:36200
+#      2 fsu:8420
+#      6 unf:18318
+#
+# 7: we need the distributions of the counts so select the first numbers
+#
+# 8: and count them:
+#
+#      2 2
+#      1 6
+#
+# the above is understood to mean there are two objects (fau:36200 and fsu:8420) with 2 extra datastreams each, and 1 (unf:18138) with 6.
+#
+# 9: swap the colums: these will be the pairs (extra-datastreams, count), strictly increasing in the number of extra-datastreams:
+#
+#      2 2
+#      6 1
+#
+# for our example data above: there are 2 objects with 2 extra datastreams, and one with six extra datastreams.
+#
+# Again, that pipeline:
+#
+# 1                        2               3      4             5         6         7                  8         9
+# grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, $1}'
+#
+# the above returns data that looks something like:
+#
+#    1 8183
+#    2 9862
+#    3 7416
+#    4 4155
+#    5 3032
+#    6 19213
+#    7 589
+#    8 319
+#    9 1636
+#   10 537
+#   11 401
+#   12 1824
+#   13 147
+#   14 113
+#   15 188
+#   16 467
+#   17 140
+#   18 159
+#   19 66
+#   20 73
+#     ....
+#
+# Now when we plot it, those data are not very useful - for instance,
+# the number of objects that have 6 extra datastreams (19,213) pretty
+# much swamps out the fine details when fit onto a graph.
+#
+# So we'll use the log function to compress the output - don't be
+# afraid of the log! It just squeezes the biggest numbers much more than
+# smaller numbers (but preserves 'less-than' always). Here's our final cut:
+#
+grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, 1 + log($1)}'
