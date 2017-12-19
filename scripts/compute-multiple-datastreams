@@ -1,6 +1,16 @@
 #!/bin/sh
 #
-# Consider a fragment of our data as produced by the script
+# This script takes the raw output of parse-datastreams, say data.csv,
+# and then produces a two-column CSV file that lists the number of
+# objects that have historical datastreams. This script would be run
+# as so:
+#
+# ./this-script < data.csv > plot.csv
+#
+# Then you can use some graphing package to display it - I use numbers
+# on the mac.
+#
+# Details: consider a fragment of our data as produced by parse-datastreams:
 #
 # fau:36200,MODS,MODS.0,2243,2017-08-07T18:46:50.852Z,true
 # fau:36200,MODS,MODS.1,2454,2017-08-11T12:19:33.833Z,false
@@ -20,8 +30,8 @@
 #
 # I'm taking us through the processing pipeline, which is:
 #
-# 1                        2               3      4             5         6         7                  8         9
-# grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, $1}'
+# 1                     2               3      4             5         6         7                  8         9
+# grep -v 'false$' $1 | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2 "," $1}'
 #
 # 1: look at our collected data as in the above and find the extra
 # datastreams - false means it's not deletable, it's the one we need
@@ -45,11 +55,6 @@
 #
 # 5: count them - we have the total number of redundant per islandora digital object
 #
-# repeating that pipeline so you can follow along:
-#
-# 1                        2               3      4             5         6         7                  8         9
-# grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, $1}'
-#
 # 6: sort by the counts (so '2' would mean there were that many extra
 # datastreams for a single object) - for instance,
 #
@@ -66,48 +71,13 @@
 #
 # the above is understood to mean there are two objects (fau:36200 and fsu:8420) with 2 extra datastreams each, and 1 (unf:18138) with 6.
 #
-# 9: swap the colums: these will be the pairs (extra-datastreams, count), strictly increasing in the number of extra-datastreams:
+# 9: swap the columns, add a comma: these will be the pairs (extra-datastreams, count), strictly increasing in the number of extra-datastreams:
 #
-#      2 2
-#      6 1
+#      2,2
+#      6,1
 #
 # for our example data above: there are 2 objects with 2 extra datastreams, and one with six extra datastreams.
 #
-# Again, that pipeline:
+# Now when we plot it all of our data, we'll need to do log-linear plot.
 #
-# 1                        2               3      4             5         6         7                  8         9
-# grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, $1}'
-#
-# the above returns data that looks something like:
-#
-#    1 8183
-#    2 9862
-#    3 7416
-#    4 4155
-#    5 3032
-#    6 19213
-#    7 589
-#    8 319
-#    9 1636
-#   10 537
-#   11 401
-#   12 1824
-#   13 147
-#   14 113
-#   15 188
-#   16 467
-#   17 140
-#   18 159
-#   19 66
-#   20 73
-#     ....
-#
-# Now when we plot it, those data are not very useful - for instance,
-# the number of objects that have 6 extra datastreams (19,213) pretty
-# much swamps out the fine details when fit onto a graph.
-#
-# So we'll use the log function to compress the output - don't be
-# afraid of the log! It just squeezes the biggest numbers much more than
-# smaller numbers (but preserves 'less-than' always). Here's our final cut:
-#
-grep -v 'false$' $1 | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, 1 + log($1)}'
+grep -v 'false$' $1 | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2 "," $1}'
