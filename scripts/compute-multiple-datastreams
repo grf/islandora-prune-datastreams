@@ -110,4 +110,4 @@
 # afraid of the log! It just squeezes the biggest numbers much more than
 # smaller numbers (but preserves 'less-than' always). Here's our final cut:
 #
-grep -v 'false$' *.csv | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, 1 + log($1)}'
+grep -v 'false$' $1 | cut -d, -f1,2 | sort | cut -d, -f1 | uniq -c | sort -n | awk '{print $1}' | uniq -c | awk '{print $2, 1 + log($1)}'
