@@ -1,9 +1,10 @@
 #!/bin/sh
 
-for i in /data/objectStore/??; do
+dir=`dirname $0`
 
-  partition=`basename $i`
-  time find $i/ -type f -exec ./parse-datastreams {} + > $partition.csv 2> $partition.err
-  sleep 60
+if [ ! -f "$dir"/parse-datastreams ]; then
+   echo "Can't find the parse-datastreams program, expected it to be in $dir"
+fi
 
-done
+root=/data/objectStore/
+time find $root -type f -exec "$dir"/parse-datastreams {} + > data.csv 2> data.err
