@@ -68,6 +68,17 @@ We collected the data using the parse-datastreams program on
 We used the script compute-multiple-datastreams on these data, see
 especially the plots in the data/2017-12-18/ directory.
 
+To compute the sums:
+
+   gunzip -c data.csv.gz | grep 'true$' | cut -d, -f4 | egrep -v '^-' | sum.awk
+
+where sum.awk is the script:
+
+	#!/bin/sh
+	awk  '{ s += $1 } END { print "sum: ", s, " average: ", s/NR, " samples: ", NR }'
+
+(the 'egrep -v ^-1' above is because we have about 3000 degenerate datastreams that report a size of '-1')
+
 The disk size wasted is:
 
 111,287,157,847 Bytes
